@@ -13,10 +13,15 @@ The generated wordlists can be used with brute-force tools.
 * Multi-threaded execution for faster generation
 
 ## Usage
-Save the script as PhoneNumber.py and run it using Python 3.
+Clone the Repository
+```
+git clone https://github.com/HeyItsSamir/PhoneListGenerator
+```
+Make the Script and Executable
 ````
 chmod +x PhoneNumber.py
 ````
+Run the Script with Python
 ````
 python3 ./PhoneNumber.py
 ````
