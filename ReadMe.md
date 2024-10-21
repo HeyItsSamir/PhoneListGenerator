@@ -17,9 +17,13 @@ Clone the Repository
 ```
 git clone https://github.com/HeyItsSamir/PhoneListGenerator
 ```
+Change Directory
+```
+cd PhoneListGenerator
+```
 Make the Script and Executable
 ````
-chmod +x PhoneNumber.py
+chmod +x Phonenumber.py
 ````
 Run the Script with Python
 ````
