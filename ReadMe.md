@@ -27,6 +27,6 @@ sudo chmod +x Phonenumber.py
 ````
 Run the Script with Python
 ````
-python3 ./PhoneNumber.py
+python3 ./Phonenumber.py
 ````
 
