@@ -23,7 +23,7 @@ cd PhoneListGenerator
 ```
 Make the Script and Executable
 ````
-chmod +x Phonenumber.py
+sudo chmod +x Phonenumber.py
 ````
 Run the Script with Python
 ````
