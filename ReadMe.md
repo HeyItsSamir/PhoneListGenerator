@@ -10,7 +10,6 @@ The generated wordlists can be used with brute-force tools.
 * Generate phone numbers for specified area codes
 * Save generated phone numbers to a file
 * Option to resume from the last saved progress
-* Multi-threaded execution for faster generation
 
 ## Usage
 Clone the Repository
@@ -29,4 +28,15 @@ Run the Script with Python
 ````
 python3 ./Phonenumber.py
 ````
+
+## Example
+
+![Phonenumber-py Completion](https://github.com/user-attachments/assets/b3413e13-c867-4958-9c90-f5d4cd6eac97)
+
+* Multi-threaded execution for faster generation
+
+![Phonenumber-py Completion](https://github.com/user-attachments/assets/9bf05e3d-4165-45c0-86cd-edcac6736557)
+
+![CD Dir](https://github.com/user-attachments/assets/5e3673bf-6f9d-41f9-a861-c321d9c19c1f)
+* May need to move file to a .txt   Sudo mv ChicagoPhoneNumbers > ChicagoPhoneNumbers.txt
 
