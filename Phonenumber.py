@@ -18,32 +18,10 @@ import datetime
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from typing import List, Tuple, Optional
+import area_codes
+codes = area_codes.get_area_codes(state)
+name  = area_codes.get_state_name(state)
 
-# ------------------------------------------------------------------
-# Dependency auto-install
-# ------------------------------------------------------------------
-REQUIRED_LIBRARIES = ["py-area-codes"]
-
-def check_dependencies() -> None:
-    missing = []
-    for lib in REQUIRED_LIBRARIES:
-        try:
-            __import__(lib.replace("-", "_"))
-        except ImportError:
-            missing.append(lib)
-
-    if missing:
-        print(f"Missing: {', '.join(missing)}")
-        choice = input("Install now? (y/n): ").strip().lower()
-        if choice != "y":
-            sys.exit("Required packages not installed.")
-        for lib in missing:
-            print(f"Installing {lib}...")
-            subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
-
-check_dependencies()
-
-from py_area_codes import AreaCodes
 
 # ------------------------------------------------------------------
 # Constants & setup
