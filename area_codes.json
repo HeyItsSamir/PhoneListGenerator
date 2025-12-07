@@ -16,7 +16,6 @@ STATE_NAME_TO_ABBR = {
     # Territories
     "AMERICAN SAMOA": "AS", "GUAM": "GU", "NORTHERN MARIANA ISLANDS": "MP",
     "PUERTO RICO": "PR", "U.S. VIRGIN ISLANDS": "VI", "US VIRGIN ISLANDS": "VI"
-}
 
 
 {
