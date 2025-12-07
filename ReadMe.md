@@ -36,11 +36,14 @@ chmod +x Phonenumber.py
 python3 -m venv venv
 source venv/bin/activate
 ```
+<img width="774" height="74" alt="image" src="https://github.com/user-attachments/assets/c64524fc-410e-4d6d-a351-df3a309b0c52" />
 
 ### 5. Install Dependencies
 ```
 pip install py-area-codes
 ```
+<img width="804" height="245" alt="image" src="https://github.com/user-attachments/assets/ec3d7d1c-75e8-446b-86f4-3e05450cdb0a" />
+
 
 ### 6. Run the Script
 ```
