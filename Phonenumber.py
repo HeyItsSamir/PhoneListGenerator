@@ -202,3 +202,51 @@ def main():
     progress = load_progress()
     if progress and progress.get("output_file") == str(output_file):
         resume = input
+    # Resume?
+    progress = load_progress()
+    if progress and progress.get("output_file") == str(output_file):
+        resume = input(f"Resume previous run for {output_file.name}? (y/n): ").strip().lower()
+        if resume == "y":
+            global_start_from = progress.get("start_from", 0)
+            print(f"Resuming from offset {global_start_from:,}")
+        else:
+            global_start_from = 0
+            output_file.unlink(missing_ok=True)
+            output_file.touch()
+    else:
+        global_start_from = 0
+        output_file.unlink(missing_ok=True)
+        output_file.touch()
+
+    total_numbers = len(area_codes_list) * 10_000_000
+    print(f"\nGenerating {len(area_codes_list)} area code(s) → {total_numbers:,} numbers total")
+    print(f"Output → {output_file}\n")
+
+    chunk_size = 1_000_000
+    tasks = task_generator(country_code, area_codes_list, global_start_from, chunk_size, output_file)
+
+    with ProcessPoolExecutor(max_workers=args.threads) as executor:
+        completed = 0
+        for _ in executor.map(generate_chunk, tasks, chunksize=1):
+            completed += chunk_size
+            global_start_from += chunk_size
+            if completed % (chunk_size * 10) == 0:
+                print(f"\rWritten: {completed:,} / {total_numbers:,} numbers...", end="", flush=True)
+
+    # Final report
+    if output_file.stat().st_size == 0:
+        output_file.unlink()
+        print("\nNo numbers generated.")
+    else:
+        size_gb = output_file.stat().st_size / 1e9
+        print(f"\nDONE!")
+        print(f"File → {output_file}")
+        print(f"Size → {size_gb:.2f} GB")
+        print(f"Total numbers → {total_numbers:,}")
+
+    # Clean up progress file on success
+    if os.path.exists(PROGRESS_FILE):
+        os.remove(PROGRESS_FILE)
+
+if __name__ == "__main__":
+    main()
