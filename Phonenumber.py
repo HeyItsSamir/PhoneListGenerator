@@ -8,7 +8,7 @@ Perfect for OSINT, research, burn lists, etc.
 Example output line: 15551234567  (pure digits, no +)
 """
 
-import sys, os, json, signal, argparse, datetime
+import sys, os, json, signal, argparse, datetime, difflib
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from typing import List, Tuple, Optional
@@ -19,6 +19,25 @@ from typing import List, Tuple, Optional
 DATA_FILE = Path(__file__).parent / "area_codes.json"
 with open(DATA_FILE) as f:
     STATE_AREA_CODES = json.load(f)
+
+# Full state/territory names → abbreviations
+STATE_NAME_TO_ABBR = {
+    "ALABAMA": "AL", "ALASKA": "AK", "ARIZONA": "AZ", "ARKANSAS": "AR",
+    "CALIFORNIA": "CA", "COLORADO": "CO", "CONNECTICUT": "CT", "DELAWARE": "DE",
+    "FLORIDA": "FL", "GEORGIA": "GA", "HAWAII": "HI", "IDAHO": "ID",
+    "ILLINOIS": "IL", "INDIANA": "IN", "IOWA": "IA", "KANSAS": "KS",
+    "KENTUCKY": "KY", "LOUISIANA": "LA", "MAINE": "ME", "MARYLAND": "MD",
+    "MASSACHUSETTS": "MA", "MICHIGAN": "MI", "MINNESOTA": "MN", "MISSISSIPPI": "MS",
+    "MISSOURI": "MO", "MONTANA": "MT", "NEBRASKA": "NE", "NEVADA": "NV",
+    "NEW HAMPSHIRE": "NH", "NEW JERSEY": "NJ", "NEW MEXICO": "NM", "NEW YORK": "NY",
+    "NORTH CAROLINA": "NC", "NORTH DAKOTA": "ND", "OHIO": "OH", "OKLAHOMA": "OK",
+    "OREGON": "OR", "PENNSYLVANIA": "PA", "RHODE ISLAND": "RI", "SOUTH CAROLINA": "SC",
+    "SOUTH DAKOTA": "SD", "TENNESSEE": "TN", "TEXAS": "TX", "UTAH": "UT",
+    "VERMONT": "VT", "VIRGINIA": "VA", "WASHINGTON": "WA", "WEST VIRGINIA": "WV",
+    "WISCONSIN": "WI", "WYOMING": "WY",
+    "AMERICAN SAMOA": "AS", "GUAM": "GU", "NORTHERN MARIANA ISLANDS": "MP",
+    "PUERTO RICO": "PR", "U.S. VIRGIN ISLANDS": "VI", "US VIRGIN ISLANDS": "VI"
+}
 
 # ------------------------------------------------------------------
 # Constants & setup
@@ -44,6 +63,26 @@ def get_output_filename(country_code: str, state_name: Optional[str]) -> Path:
     state_label = get_safe_state_name(state_name) if state_name else "Custom"
     return OUTPUT_DIR / f"{country_label}_{state_label}_{date_str}.txt"
 
+def normalize_state_input(state_input: str) -> Tuple[Optional[str], List[str]]:
+    """
+    Returns (abbr_or_none, suggestions). Accepts full name or abbreviation.
+    """
+    raw = state_input.strip().upper()
+
+    # Direct abbreviation
+    if raw in STATE_AREA_CODES:
+        return raw, []
+
+    # Full name → abbreviation
+    abbr = STATE_NAME_TO_ABBR.get(raw)
+    if abbr and abbr in STATE_AREA_CODES:
+        return abbr, []
+
+    # Suggestions
+    candidates = list(STATE_AREA_CODES.keys()) + list(STATE_NAME_TO_ABBR.keys())
+    suggestions = difflib.get_close_matches(raw, candidates, n=3, cutoff=0.6)
+    return None, suggestions
+
 # ------------------------------------------------------------------
 # Input
 # ------------------------------------------------------------------
@@ -57,16 +96,25 @@ def get_country_code() -> str:
 def get_area_codes() -> Tuple[List[str], Optional[str]]:
     choice = input("Use predefined area codes by state? (y/n): ").strip().lower()
     if choice == "y":
-        state = input("Enter state (e.g. Florida or FL): ").strip().upper()
-        if state in STATE_AREA_CODES:
-            codes = STATE_AREA_CODES[state]
-            print(f"Found {len(codes)} area codes for {state}: {codes}")
-            return codes, state
-        print("State not found.")
-        return [], None
+        attempts = 0
+        while attempts < 3:
+            state_input = input("Enter state (full name or abbreviation, e.g. Alabama or AL): ").strip()
+            abbr, suggestions = normalize_state_input(state_input)
+            if abbr:
+                codes = STATE_AREA_CODES[abbr]
+                print(f"Found {len(codes)} area codes for {abbr}: {codes}")
+                return codes, abbr
+
+            attempts += 1
+            if suggestions:
+                print(f"State not found. Did you mean: {', '.join(suggestions)}?")
+            else:
+                print("State not found. Please try again (e.g., 'Alabama' or 'AL').")
+
+        print("Too many failed attempts. Switching to manual area code entry.")
 
     # Manual mode
-    codes = []
+    codes: List[str] = []
     while True:
         n = input("How many area codes to add? ").strip()
         if n.isdigit() and int(n) > 0:
@@ -153,48 +201,4 @@ def main():
     # Resume?
     progress = load_progress()
     if progress and progress.get("output_file") == str(output_file):
-        resume = input(f"Resume previous run for {output_file.name}? (y/n): ").strip().lower()
-        if resume == "y":
-            global_start_from = progress.get("start_from", 0)
-            print(f"Resuming from offset {global_start_from:,}")
-        else:
-            global_start_from = 0
-            output_file.unlink(missing_ok=True)
-            output_file.touch()
-    else:
-        global_start_from = 0
-        output_file.unlink(missing_ok=True)
-        output_file.touch()
-
-    total_numbers = len(area_codes_list) * 10_000_000
-    print(f"\nGenerating {len(area_codes_list)} area code(s) → {total_numbers:,} numbers total")
-    print(f"Output → {output_file}\n")
-
-    chunk_size = 1_000_000
-    tasks = task_generator(country_code, area_codes_list, global_start_from, chunk_size, output_file)
-
-    with ProcessPoolExecutor(max_workers=args.threads) as executor:
-        completed = 0
-        for _ in executor.map(generate_chunk, tasks, chunksize=1):
-            completed += chunk_size
-            global_start_from += chunk_size
-            if completed % (chunk_size * 10) == 0:
-                print(f"\rWritten: {completed:,} / {total_numbers:,} numbers...", end="", flush=True)
-
-    # Final report
-    if output_file.stat().st_size == 0:
-        output_file.unlink()
-        print("\nNo numbers generated.")
-    else:
-        size_gb = output_file.stat().st_size / 1e9
-        print(f"\nDONE!")
-        print(f"File → {output_file}")
-        print(f"Size → {size_gb:.2f} GB")
-        print(f"Total numbers → {total_numbers:,}")
-
-    # Clean up progress file on success
-    if os.path.exists(PROGRESS_FILE):
-        os.remove(PROGRESS_FILE)
-
-if __name__ == "__main__":
-    main()
+        resume = input
