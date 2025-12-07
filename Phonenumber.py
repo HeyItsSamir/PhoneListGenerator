@@ -18,9 +18,14 @@ import datetime
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from typing import List, Tuple, Optional
-import area_codes
-codes = area_codes.get_area_codes(state)
-name  = area_codes.get_state_name(state)
+import json
+from pathlib import Path
+
+# Load area codes dictionary from JSON file
+DATA_FILE = Path(__file__).parent / "area_codes.json"
+with open(DATA_FILE) as f:
+    STATE_AREA_CODES = json.load(f)
+
 
 
 # ------------------------------------------------------------------
@@ -64,11 +69,31 @@ def get_area_codes() -> Tuple[List[str], Optional[str]]:
     choice = input("Use predefined area codes by state? (y/n): ").strip().lower()
     if choice == "y":
         state = input("Enter state (e.g. Florida or FL): ").strip()
-        codes = ac.get_area_codes(state)
-        if codes:
+        state_key = state.upper()
+        if state_key in STATE_AREA_CODES:
+            codes = STATE_AREA_CODES[state_key]
             print(f"Found {len(codes)} area codes for {state}: {codes}")
-            return codes, state
+            return codes, state_key
         print("State not found.")
+        return [], None
+
+    # Manual mode
+    codes = []
+    while True:
+        n = input("How many area codes to add? ").strip()
+        if n.isdigit() and int(n) > 0:
+            n = int(n)
+            break
+        print("Enter a positive number.")
+
+    for i in range(n):
+        while True:
+            code = input(f"Area code {i+1}/{n}: ").strip()
+            if code.isdigit() and 1 <= len(code) <= 5:
+                codes.append(code)
+                break
+            print("Digits only (1–5).")
+    return codes, None
 
     # Manual mode
     codes = []
