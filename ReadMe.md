@@ -1,42 +1,64 @@
 # Phone List Generating Script
-This script is designed to iterate and create all possible phone numbers in specified geographic regions. 
-By prompting the user for a country code and multiple area codes, it generates a comprehensive list of phone numbers, which can be saved to a file for further use. 
-The generated wordlists can be used with brute-force tools.
 
-**Note: This script is stricly for educational-purposes and should be used as such.**
+This script is designed to iterate and create all possible phone numbers in specified geographic regions. By prompting the user for a country code and multiple area codes, it generates a comprehensive list of phone numbers, which can be saved to a file for further use. The generated wordlists can be used with brute-force tools.
+
+> **Note:** This script is strictly for educational purposes and should be used as such.
+
+---
 
 ## Features
-* Prompt user for country code and multiple area codes
-* Generate phone numbers for specified area codes
-* Save generated phone numbers to a file
-* Option to resume from the last saved progress
+- Prompt user for country code and multiple area codes  
+- Generate phone numbers for specified area codes  
+- Save generated phone numbers to a file  
+- Option to resume from the last saved progress  
+
+---
 
 ## Usage
-Clone the Repository
-```
+
+### 1. Clone the Repository
+```bash
 git clone https://github.com/HeyItsSamir/PhoneListGenerator
 ```
-Change Directory
+
+### 2. Change Directory
 ```
 cd PhoneListGenerator
 ```
-Make the Script and Executable
-````
-sudo chmod +x Phonenumber.py
-````
-Run the Script with Python
-````
+
+### 3. Make the Script Executable
+```
+chmod +x Phonenumber.py
+```
+
+### 4. Create and Activate a Virtual Environment
+```
+python3 -m venv venv
+source venv/bin/activate
+```
+
+### 5. Install Dependencies
+```
+pip install py-area-codes
+```
+
+### 6. Run the Script
+```
 python3 ./Phonenumber.py
-````
+```
 
-## Example
+### 7.Deactivate the Virtual Environment (when finished)
+```
+deactivate
+```
 
-![Phonenumber-py Completion](https://github.com/user-attachments/assets/b3413e13-c867-4958-9c90-f5d4cd6eac97)
+### Important: Run Inside Virtual Environment
 
-* Multi-threaded execution for faster generation
+Before running the script, make sure you have activated the virtual environment you created in step 4. This ensures that all required dependencies (like `py-area-codes`) are available.
 
-![Phonenumber-py Completion](https://github.com/user-attachments/assets/9bf05e3d-4165-45c0-86cd-edcac6736557)
+```bash
+# Activate the virtual environment
+source venv/bin/activate
 
-![CD Dir](https://github.com/user-attachments/assets/5e3673bf-6f9d-41f9-a861-c321d9c19c1f)
-* May need to move file to a .txt   Sudo mv ChicagoPhoneNumbers > ChicagoPhoneNumbers.txt
-
+# Run the script
+python3 ./Phonenumber.py
