@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Phone Number List Generator
-Generates full 10M phone numbers per area code (0000000–9999999)
-Merges all area codes from a state into one clean, dated file.
-Perfect for red teaming, OSINT, or research (use responsibly).
+Clean Phone Number List Generator (NO + sign)
+Generates 0000000–9999999 for selected area codes
+All numbers from one state → single dated file in PhoneListGenerator/
+Perfect for OSINT, research, burn lists, etc.
+
+Example output line: 15551234567  (pure digits, no +)
 """
 
 import sys
@@ -18,7 +20,7 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import List, Tuple, Optional
 
 # ------------------------------------------------------------------
-# Dependency check & auto-install
+# Dependency auto-install
 # ------------------------------------------------------------------
 REQUIRED_LIBRARIES = ["py-area-codes"]
 
@@ -31,11 +33,10 @@ def check_dependencies() -> None:
             missing.append(lib)
 
     if missing:
-        print(f"Missing dependencies: {', '.join(missing)}")
-        choice = input("Install them now? (y/n): ").strip().lower()
+        print(f"Missing: {', '.join(missing)}")
+        choice = input("Install now? (y/n): ").strip().lower()
         if choice != "y":
-            print("Exiting. Please install required packages.")
-            sys.exit(1)
+            sys.exit("Required packages not installed.")
         for lib in missing:
             print(f"Installing {lib}...")
             subprocess.check_call([sys.executable, "-m", "pip", "install", lib])
@@ -45,7 +46,7 @@ check_dependencies()
 from py_area_codes import AreaCodes
 
 # ------------------------------------------------------------------
-# Global constants & setup
+# Constants & setup
 # ------------------------------------------------------------------
 ac = AreaCodes()
 OUTPUT_DIR = Path("PhoneListGenerator")
@@ -57,10 +58,9 @@ current_state_name: Optional[str] = None
 current_output_file: Optional[Path] = None
 
 # ------------------------------------------------------------------
-# Helper functions
+# Helpers
 # ------------------------------------------------------------------
 def get_safe_state_name(state_input: str) -> str:
-    """Convert CA, ca, california → California (or best guess)"""
     name = ac.get_state_name(state_input)
     if name:
         return "".join(c if c.isalnum() or c in " -" else "_" for c in name)
@@ -73,34 +73,33 @@ def get_output_filename(country_code: str, state_name: Optional[str]) -> Path:
     return OUTPUT_DIR / f"{country_label}_{state_label}_{date_str}.txt"
 
 # ------------------------------------------------------------------
-# User input functions
+# Input
 # ------------------------------------------------------------------
 def get_country_code() -> str:
     while True:
-        code = input("Enter the country code (e.g., 1 for USA): ").strip()
+        code = input("Enter country code (e.g. 1 for USA): ").strip()
         if code.isdigit() and int(code) > 0:
             return code
-        print("Invalid — please enter positive digits only.")
+        print("Positive digits only.")
 
 def get_area_codes() -> Tuple[List[str], Optional[str]]:
     choice = input("Use predefined area codes by state? (y/n): ").strip().lower()
     if choice == "y":
-        state = input("Enter state name or abbreviation (e.g., Texas or TX): ").strip()
+        state = input("Enter state (e.g. Florida or FL): ").strip()
         codes = ac.get_area_codes(state)
         if codes:
             print(f"Found {len(codes)} area codes for {state}: {codes}")
             return codes, state
-        print("State not found or has no area codes.")
+        print("State not found.")
 
-    # Manual entry fallback
-    print("Manual area code entry:")
+    # Manual mode
     codes = []
     while True:
         n = input("How many area codes to add? ").strip()
         if n.isdigit() and int(n) > 0:
             n = int(n)
             break
-        print("Please enter a positive number.")
+        print("Enter a positive number.")
 
     for i in range(n):
         while True:
@@ -108,28 +107,28 @@ def get_area_codes() -> Tuple[List[str], Optional[str]]:
             if code.isdigit() and 1 <= len(code) <= 5:
                 codes.append(code)
                 break
-            print("Invalid — digits only (1–5 digits).")
+            print("Digits only (1–5).")
     return codes, None
 
 # ------------------------------------------------------------------
-# Core generation logic
+# Core generation (NO + SIGN!)
 # ------------------------------------------------------------------
 def generate_chunk(task: Tuple[str, str, int, int, Path]) -> None:
     area_code, country_code, start, end, outfile = task
-    prefix = f"+{country_code}{area_code}"
+    # ← NO "+" HERE ANYMORE
+    prefix = f"{country_code}{area_code}"
     lines = [f"{prefix}{i:07d}\n" for i in range(start, end)]
     with open(outfile, "a", buffering=1024*1024) as f:
         f.writelines(lines)
 
 def task_generator(country_code: str, area_codes: List[str], start_from: int, chunk_size: int, outfile: Path):
-    prefix = f"+{country_code}"
     for area_code in area_codes:
         for start in range(start_from, 10_000_000, chunk_size):
             end = min(start + chunk_size, 10_000_000)
             yield (area_code, country_code, start, end, outfile)
 
 # ------------------------------------------------------------------
-# Progress & signal handling
+# Progress & interrupt handling
 # ------------------------------------------------------------------
 def save_progress(position: int) -> None:
     data = {
@@ -141,7 +140,7 @@ def save_progress(position: int) -> None:
         json.dump(data, f)
 
 def load_progress() -> Optional[dict]:
-    if PROGRESS_FILE in os.listdir("."):
+    if os.path.exists(PROGRESS_FILE):
         try:
             with open(PROGRESS_FILE) as f:
                 return json.load(f)
@@ -152,73 +151,74 @@ def load_progress() -> Optional[dict]:
 def signal_handler(sig, frame):
     print("\nInterrupt received — saving progress...")
     save_progress(global_start_from)
-    print(f"Progress saved. Resume later with the same settings.")
+    print("Progress saved to progress.json")
     sys.exit(0)
 
 signal.signal(signal.SIGINT, signal_handler)
 
 # ------------------------------------------------------------------
-# Main function
+# Main
 # ------------------------------------------------------------------
 def main():
     global global_start_from, current_state_name, current_output_file
 
-    print("Phone Number List Generator\n")
+    print("Clean Phone Number List Generator (no + sign)\n")
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--threads", type=int, default=os.cpu_count(),
-                        help="Number of processes (default: CPU count)")
+                        help="Number of processes (default: all cores)")
     args = parser.parse_args()
 
     country_code = get_country_code()
     area_codes, state_name = get_area_codes()
     current_state_name = state_name
 
-    # Output file setup
+    # Output file
     output_file = get_output_filename(country_code, state_name)
     current_output_file = output_file
-    output_file.touch()  # create if not exists
+    output_file.touch()
 
-    # Resume logic
+    # Resume?
     progress = load_progress()
     if progress and progress.get("output_file") == str(output_file):
-        resume = input("Previous progress found for this exact file. Resume? (y/n): ").strip().lower()
+        resume = input(f"Resume previous run for {output_file.name}? (y/n): ").strip().lower()
         if resume == "y":
             global_start_from = progress.get("start_from", 0)
-            print(f"Resuming from number offset: {global_start_from:,}")
+            print(f"Resuming from offset {global_start_from:,}")
         else:
             global_start_from = 0
             output_file.unlink(missing_ok=True)
             output_file.touch()
     else:
         global_start_from = 0
-        if output_file.exists():
-            output_file.unlink()
+        output_file.unlink(missing_ok=True)
         output_file.touch()
 
-    # Thread count
-    print(f"\nUsing {args.threads} processes")
-    print(f"Generating {len(area_codes)} area code(s) → {len(area_codes) * 10_000_000:,} numbers total")
+    total_numbers = len(area_codes) * 10_000_000
+    print(f"\nGenerating {len(area_codes)} area code(s) → {total_numbers:,} numbers total")
     print(f"Output → {output_file}\n")
 
     chunk_size = 1_000_000
     tasks = task_generator(country_code, area_codes, global_start_from, chunk_size, output_file)
 
     with ProcessPoolExecutor(max_workers=args.threads) as executor:
-        for i, _ in enumerate(executor.map(generate_chunk, tasks, chunksize=1), 1):
-            if i % 10 == 0:  # feedback every 10M numbers
-                print(f"\rProgress: {i * chunk_size:,} numbers written...", end="", flush=True)
+        completed = 0
+        for _ in executor.map(generate_chunk, tasks, chunksize=1):
+            completed += chunk_size
             global_start_from += chunk_size
+            if completed % (chunk_size * 10) == 0:
+                print(f"\rWritten: {completed:,} / {total_numbers:,} numbers...", end="", flush=True)
 
-    # Final cleanup
-    if os.path.getsize(output_file) == 0:
+    # Final report
+    if output_file.stat().st_size == 0:
         output_file.unlink()
-        print("No numbers generated.")
+        print("\nNo numbers generated.")
     else:
-        print(f"\nGeneration complete!")
-        print(f"File: {output_file}")
-        print(f"Size: {os.path.getsize(output_file) / 1e9:.2f} GB")
-        print(f"Contains: {len(area_codes)} area codes × 10M = {len(area_codes)*10_000_000:,} numbers")
+        size_gb = output_file.stat().st_size / 1e9
+        print(f"\nDONE!")
+        print(f"File → {output_file}")
+        print(f"Size → {size_gb:.2f} GB")
+        print(f"Total numbers → {total_numbers:,}")
 
     # Clean up progress file on success
     if os.path.exists(PROGRESS_FILE):
