@@ -8,30 +8,21 @@ Perfect for OSINT, research, burn lists, etc.
 Example output line: 15551234567  (pure digits, no +)
 """
 
-import sys
-import subprocess
-import os
-import json
-import signal
-import argparse
-import datetime
+import sys, os, json, signal, argparse, datetime
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor
 from typing import List, Tuple, Optional
-import json
-from pathlib import Path
 
+# ------------------------------------------------------------------
 # Load area codes dictionary from JSON file
+# ------------------------------------------------------------------
 DATA_FILE = Path(__file__).parent / "area_codes.json"
 with open(DATA_FILE) as f:
     STATE_AREA_CODES = json.load(f)
 
-
-
 # ------------------------------------------------------------------
 # Constants & setup
 # ------------------------------------------------------------------
-ac = AreaCodes()
 OUTPUT_DIR = Path("PhoneListGenerator")
 OUTPUT_DIR.mkdir(exist_ok=True)
 PROGRESS_FILE = "progress.json"
@@ -44,10 +35,8 @@ current_output_file: Optional[Path] = None
 # Helpers
 # ------------------------------------------------------------------
 def get_safe_state_name(state_input: str) -> str:
-    name = ac.get_state_name(state_input)
-    if name:
-        return "".join(c if c.isalnum() or c in " -" else "_" for c in name)
-    return "".join(c if c.isalnum() else "_" for c in state_input.strip().title())
+    """Sanitize state name for filenames."""
+    return "".join(c if c.isalnum() or c in " -" else "_" for c in state_input.strip().title())
 
 def get_output_filename(country_code: str, state_name: Optional[str]) -> Path:
     date_str = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -68,32 +57,13 @@ def get_country_code() -> str:
 def get_area_codes() -> Tuple[List[str], Optional[str]]:
     choice = input("Use predefined area codes by state? (y/n): ").strip().lower()
     if choice == "y":
-        state = input("Enter state (e.g. Florida or FL): ").strip()
-        state_key = state.upper()
-        if state_key in STATE_AREA_CODES:
-            codes = STATE_AREA_CODES[state_key]
+        state = input("Enter state (e.g. Florida or FL): ").strip().upper()
+        if state in STATE_AREA_CODES:
+            codes = STATE_AREA_CODES[state]
             print(f"Found {len(codes)} area codes for {state}: {codes}")
-            return codes, state_key
+            return codes, state
         print("State not found.")
         return [], None
-
-    # Manual mode
-    codes = []
-    while True:
-        n = input("How many area codes to add? ").strip()
-        if n.isdigit() and int(n) > 0:
-            n = int(n)
-            break
-        print("Enter a positive number.")
-
-    for i in range(n):
-        while True:
-            code = input(f"Area code {i+1}/{n}: ").strip()
-            if code.isdigit() and 1 <= len(code) <= 5:
-                codes.append(code)
-                break
-            print("Digits only (1–5).")
-    return codes, None
 
     # Manual mode
     codes = []
@@ -118,7 +88,6 @@ def get_area_codes() -> Tuple[List[str], Optional[str]]:
 # ------------------------------------------------------------------
 def generate_chunk(task: Tuple[str, str, int, int, Path]) -> None:
     area_code, country_code, start, end, outfile = task
-    # ← NO "+" HERE ANYMORE
     prefix = f"{country_code}{area_code}"
     lines = [f"{prefix}{i:07d}\n" for i in range(start, end)]
     with open(outfile, "a", buffering=1024*1024) as f:
@@ -173,7 +142,7 @@ def main():
     args = parser.parse_args()
 
     country_code = get_country_code()
-    area_codes, state_name = get_area_codes()
+    area_codes_list, state_name = get_area_codes()
     current_state_name = state_name
 
     # Output file
@@ -197,12 +166,12 @@ def main():
         output_file.unlink(missing_ok=True)
         output_file.touch()
 
-    total_numbers = len(area_codes) * 10_000_000
-    print(f"\nGenerating {len(area_codes)} area code(s) → {total_numbers:,} numbers total")
+    total_numbers = len(area_codes_list) * 10_000_000
+    print(f"\nGenerating {len(area_codes_list)} area code(s) → {total_numbers:,} numbers total")
     print(f"Output → {output_file}\n")
 
     chunk_size = 1_000_000
-    tasks = task_generator(country_code, area_codes, global_start_from, chunk_size, output_file)
+    tasks = task_generator(country_code, area_codes_list, global_start_from, chunk_size, output_file)
 
     with ProcessPoolExecutor(max_workers=args.threads) as executor:
         completed = 0
